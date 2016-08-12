@@ -1,16 +1,3 @@
-/*
- *
- * Commands
- *
- *  - help! describes these options
- *  - game! starts a game with a random opponent
- *  - challenge! <username> starts a game against named opponent
- *  - #trashtalk tags a string as trashtalk
- *
- *
- * */
-
-
 if (!process.env.token) {
     console.log('Error: Specify token in environment');
     process.exit(1);
@@ -45,6 +32,8 @@ controller.hears('help!', ['ambient'], function (bot, message) {
         + "_random!_ - to challenge a random opponent\n"
         + "_report! match name_ - to report a win or loss\n"
         + "_scores!_ - to see the leaderboard, sorted by W/L ratio\n"
+        + "_trash!_ - talk some smack\n"
+        + "_#trashtalk_ - teach the bot naughty language\n"
         + "_openmatches!_ - to list open matches\n"
         ;
     bot.reply(message, help);
@@ -264,7 +253,13 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
         }
 
         sorted.sort(function (a, b) {
-            return a.win / a.loss < b.win / b.loss;
+            var aRatio = a.win / a.loss;
+            var bRatio = b.win / b.loss;
+
+            if(!isFinite(aRatio-bRatio))
+                return !isFinite(aRatio) ? 1 : -1;
+            else
+                return aRatio-bRatio;
         });
 
         for (var i = 0; i < sorted.length; i++) {
@@ -276,5 +271,38 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
     });
 });
 
+var hashTagTrashTalk = '#trashtalk';
+controller.hears(['trash!', hashTagTrashTalk],['direct_message','ambient'],function(bot , message) {
+    controller.storage.channels.get(message.channel, function(err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('trash')) {
+            channel_data.trash = [];
+        }
+
+        if (message.text == 'notrash') {
+            channel_data.trash = [];
+            controller.storage.channels.save(channel_data);
+            return;
+        }
+
+        if (message.text.indexOf(hashTagTrashTalk) !== -1) {
+            channel_data.trash.push(message.text.replace(hashTagTrashTalk, '').trim());
+            controller.storage.channels.save(channel_data);
+            bot.reply(message, "Oh, NO YOU D'NT");
+        } else {
+            var thatTalk = channel_data.trash[Math.floor(Math.random()*channel_data.trash.length)];
+            if (thatTalk!==undefined) {
+                bot.reply(message, thatTalk);
+            } else {
+                bot.reply(message, "Talk some trash with *#trashtalk*");
+            }
+        }
+
+    });
+
+});
 
 console.log(Sentencer.make("slackchallenge is online and asks that you send prayers to her holiness {{ adjective }} {{ noun }}."));
