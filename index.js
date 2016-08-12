@@ -109,6 +109,10 @@ controller.hears(['challenge!', 'foos me', 'game!', "it's on!"],['direct_message
 
 
                     controller.storage.channels.get(message.channel, function(err, channel_data) {
+                        if (channel_data == null) {
+                            channel_data = {id: message.channel};
+                        }
+
                         if (!channel_data.hasOwnProperty('stats')) {
                             channel_data.stats = {};
                         }
@@ -176,6 +180,10 @@ controller.hears(['challenge!', 'foos me', 'game!', "it's on!"],['direct_message
 var hashTagTrashTalk = '#trashtalk';
 controller.hears(['trashtalk!', 'trash', hashTagTrashTalk, 'notrash'],['direct_message','ambient'],function(bot , message) {
     controller.storage.channels.get(message.channel, function(err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
         if (!channel_data.hasOwnProperty('trash')) {
             channel_data.trash = [];
         }
