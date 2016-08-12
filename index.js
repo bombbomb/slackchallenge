@@ -95,8 +95,11 @@ controller.hears(['challenge!', 'foos me', 'game!', "it's on!"],['direct_message
                 {
                     default: true,
                     callback: function (response, convo) {
-                        // just repeat the question
-                        convo.repeat();
+                        if (Math.random()*10 > 7) {
+                            convo.repeat();
+                        } else {
+                            convo.silentRepeat();
+                        }
                         convo.next();
                     }
                 }
@@ -210,5 +213,34 @@ controller.hears(['trashtalk!', 'trash', hashTagTrashTalk, 'notrash'],['direct_m
     });
 
 });
+
+controller.hears(['scores!'],['direct_message','ambient'],function(bot , message) {
+    controller.storage.channels.get(message.channel, function(err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('stats')) {
+            channel_data.stats = {};
+        }
+
+        var sorted = [];
+        for (var key in channel_data.stats) {
+            sorted.push(channel_data.stats[key]);
+        }
+
+        sorted.sort(function(a,b){
+            return a.win/a.loss < b.win/b.loss;
+        });
+
+        for (var i = 0; i<sorted.length; i++) {
+            bot.reply(message, "*" + (i+1) +".* " + sorted[i].name
+                + " with " + sorted[i].win + " wins"
+                + " and " + sorted[i].loss + " losses"
+                + " for a ratio of " + sorted[i].win/sorted[i].loss);
+        }
+    });
+});
+
 
 console.log('Foosbot online!');
