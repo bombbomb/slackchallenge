@@ -173,8 +173,6 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 
                     closeMatch(matchName);
                 });
-            } else {
-                // something happened that caused the conversation to stop prematurely
             }
         });
     });
@@ -252,7 +250,7 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
             sorted.push(channel_data.stats[key]);
         }
 
-        sorted.sort(function (a, b) {
+        sorted.sort(function (b, a) {
             var aRatio = a.win / a.loss;
             var bRatio = b.win / b.loss;
 
