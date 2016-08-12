@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/ehippy/slackchallenge",
   "dependencies": {
-    "botkit": "^0.2.2"
+    "botkit": "^0.2.2",
+    "botkit-storage-redis": "^1.0.1"
   }
 }
