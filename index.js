@@ -247,7 +247,9 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
 
         var sorted = [];
         for (var key in channel_data.stats) {
-            sorted.push(channel_data.stats[key]);
+            if (channel_data.stats[key].win > 0 && channel_data.stats[key].loss > 0) {
+                sorted.push(channel_data.stats[key]);
+            }
         }
 
         sorted.sort(function (b, a) {
