@@ -21,12 +21,57 @@ const slackConfig = {
     scopes: ['bot', 'command']
 };
 
-console.log('slack config', slackConfig);
-
 controller.configureSlackApp(slackConfig);
 
-var openMatches = [];
+// just a simple way to make sure we don't
+// connect to the RTM twice for the same team
+var _bots = {};
+function trackBot(bot) {
+    _bots[bot.config.token] = bot;
+}
 
+
+controller.on('create_bot',function(bot,config) {
+
+    if (_bots[bot.config.token]) {
+        // already online! do nothing.
+    } else {
+        bot.startRTM(function(err) {
+
+            if (!err) {
+                trackBot(bot);
+            }
+
+            bot.startPrivateConversation({user: config.createdBy},function(err,convo) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    convo.say('I am a bot that has just joined your team');
+                    convo.say('You must now /invite me to a channel so that I can be of use!');
+                }
+            });
+
+        });
+    }
+
+});
+
+const interactive = require('./interactive.js')(controller);
+
+controller.setupWebserver(8080, function(err) {
+
+    controller.createWebhookEndpoints(controller.webserver);
+
+    controller.createOauthEndpoints(controller.webserver,function(err,req,res) {
+        if (err) {
+            res.status(500).send('ERROR: ' + err);
+        } else {
+            res.send('Success!');
+        }
+    });
+});
+
+var openMatches = [];
 
 controller.hears('help!', ['ambient'], function (bot, message) {
     var help = "You can...\n"
@@ -232,12 +277,8 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
     }
     for (var i=0; i<openMatches.length; i++) {
         var match = openMatches[i];
-        bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
+        interactive.requestWinner(bot, message, match.challengerMeta.user.name, match.victimMeta.user.name, match.name);
     }
-});
-
-controller.hears('buttons!', ['ambient'], function (bot, message) {
-  require('./buttons-test.js')(bot, message);
 });
 
 controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, message) {
@@ -310,38 +351,41 @@ controller.hears(['trash!', hashTagTrashTalk],['direct_message','ambient'],funct
 
 });
 
-const interactive = require('./interactive.js')(controller);
-
-interactive.on('report_game', function(payload) {
+interactive.on('report_winner', function(payload) {
     console.log(payload);
 });
 
-
-
-controller.setupWebserver(8080, function(err) {
-
-    controller.createWebhookEndpoints(controller.webserver);
-
-    controller.createOauthEndpoints(controller.webserver,function(err,req,res) {
-        if (err) {
-            res.status(500).send('ERROR: ' + err);
-        } else {
-            res.send('Success!');
-        }
-    });
-});
-
-
 controller.on('slash_command',function(bot,message) {
 
+    switch(message.text.toLowerCase()) {
+        case 'openmatches':
+            bot.replyPrivate(message, 'Your Current Open Matches:');
+            interactive.requestWinner(bot, message, 'zech', 'jeremy', 'acid panda');
+            interactive.requestWinner(bot, message, 'patrick', 'ryan', 'warm feelings');
+            break;
+        default:
+            bot.replyPrivateDelayed(message,'*Sorry, command was not recognized.*');
+    }
 
-    console.log('dis message', message);
+});
 
-    
-    //bot.replyPublicDelayed(message,'/h');
-    bot.replyPrivateDelayed(message,'*nudge nudge wink wink*');
+// Connect to channels that the bot is in and has access to.
+controller.storage.teams.all(function(err,teams) {
+    if (err) {
+        throw new Error(err);
+    }
 
-
+    for (var t  in teams) {
+        if (teams[t].bot) {
+            controller.spawn(teams[t]).startRTM(function(err, bot) {
+                if (err) {
+                    console.log('Error connecting bot to Slack:',err);
+                } else {
+                    trackBot(bot);
+                }
+            });
+        }
+    }
 
 });
 
