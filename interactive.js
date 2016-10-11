@@ -4,11 +4,13 @@ class Interactive extends EventEmitter {
     constructor(controller) {
         super();
         controller.on('interactive_message_callback', (bot, message) => {
+
+            console.log('interactive response', message);
+
             if (message && message.actions && message.actions.length == 1) {
                 const action = message.actions[0];
                 this.emit(action.name, {
                     name: action.name,
-                    id: message.callback_id,
                     channel: message.channel,
                     channel_name: message.channel_name,
                     value: action.value
@@ -19,10 +21,10 @@ class Interactive extends EventEmitter {
 
     requestWinner(bot, message, player1, player2, game) {
         bot.reply(message,{
-            "text": `*${game}* is ${player1} *VS* ${player2}`,
+            "text": `*${game}* is ${player1.user.name} *VS* ${player2.user.name}`,
             "attachments": [
                 {
-                    "text": "Report the Winner",
+                    "text": `Who won ${game}?`,
                     "fallback": "Unable to report game.",
                     "callback_id": `${game}`,
                     "color": "#3AA3E3",
@@ -30,24 +32,24 @@ class Interactive extends EventEmitter {
                     "actions": [
                         {
                             "name": "report_winner",
-                            "text": `${player1}`,
+                            "text": `${player1.user.name}`,
                             "type": "button",
-                            "value": `${player1}`,
+                            "value": `${player1.user.id}::${player2.user.id}`,
                             "confirm": {
-                                "title": `${game}: ${player1} VS ${player2}`,
-                                "text": `Are you sure ${player1} won?`,
+                                "title": `${game}: ${player1.user.name} VS ${player2.user.name}`,
+                                "text": `Are you sure ${player1.user.name} won?`,
                                 "ok_text": "Yes",
                                 "dismiss_text": "No"
                             }
                         },
                         {
                             "name": "report_winner",
-                            "text": `${player2}`,
+                            "text": `${player2.user.name}`,
                             "type": "button",
-                            "value": `${player2}`,
+                            "value": `${player2.user.id}::${player1.user.id}`,
                             "confirm": {
-                                "title": `${game}: ${player1} VS ${player2}`,
-                                "text": `Are you sure ${player2} won?`,
+                                "title": `${game}: ${player1.user.name} VS ${player2.user.name}`,
+                                "text": `Are you sure ${player2.user.name} won?`,
                                 "ok_text": "Yes",
                                 "dismiss_text": "No"
                             }
