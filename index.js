@@ -174,8 +174,8 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                         channel_data.stats[winner.user.id]['win']++;
                         channel_data.stats[loser.user.id]['loss']++;
 
-                        var winnerRank = channel_data.stats[winner.user.id]['rank'];
-                        var loserRank = channel_data.stats[loser.user.id]['rank'];
+                        var winnerRank = channel_data.stats[winner.user.id]['rank'] || 1500;
+                        var loserRank = channel_data.stats[loser.user.id]['rank'] || 1500;
 
                         var modifierWinner = 1 / (1 + Math.pow(10, (loserRank - winnerRank) / 400));
                         var modifierLoser = 1 / (1 + Math.pow(10, (winnerRank - loserRank) / 400));
