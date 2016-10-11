@@ -29,6 +29,8 @@ controller.spawn({
 controller.hears('help!', ['ambient'], function (bot, message) {
     var help = "You can...\n"
         + "_help!_ - see this help\n"
+        + "_play!_ - opt in to get random matches\n"
+        + "_spectate!_ - opt out of getting random matches\n"
         + "_random!_ - to challenge a random opponent\n"
         + "_report! match name_ - to report a win or loss\n"
         + "_scores!_ - to see the leaderboard, sorted by W/L ratio\n"
@@ -183,19 +185,22 @@ controller.hears('random!', ['ambient'], function (bot, message) {
 
     var challenger = message.user;
 
-    bot.api.channels.info({channel: message.channel}, function (err, response) {
-
-        var members = response.channel.members;
-
-        if (members.length == 1) {
-            return;
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
         }
 
-        console.log(members);
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+
+        console.log(channel_data.players);
         var eligibleMembers = [];
-        for (var i = 0; i < members.length; i++) {
-            if ([bot.identity.id, challenger].indexOf(members[i]) === -1) {
-                eligibleMembers.push(members[i]);
+        for (var i = 0; i < channel_data.players.length; i++) {
+
+            if ([bot.identity.id, challenger].indexOf(channel_data.players[i]) === -1) {
+                eligibleMembers.push(channel_data.players[i]);
             }
         }
 
@@ -211,8 +216,6 @@ controller.hears('random!', ['ambient'], function (bot, message) {
         }
 
         var victim = eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
-
-        //todo, if the user's not active, exclude them
 
         console.log('Victim: ' + victim);
 
@@ -234,6 +237,50 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
         bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
     }
 });
+
+
+controller.hears(['play!', 'spectate!'], ['ambient'], function (bot, message) {
+    console.log(message);
+
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+        if (message.text.indexOf('play!') > -1) {
+
+            if (channel_data.players.indexOf(message.user) == -1) {
+                bot.reply(message, "Aight, you're in!...");
+                channel_data.players.push(message.user);
+            } else {
+                bot.reply(message, "You're already playing!");
+                return;
+            }
+        } else if (message.text.indexOf('spectate!') > -1) {
+
+            var indexOfPlayer = channel_data.players.indexOf(message.user);
+            if (indexOfPlayer != -1) {
+                bot.reply(message, "Peace out!");
+                channel_data.players.splice(indexOfPlayer, 1);
+            } else {
+                bot.reply(message, "You're already a spectator!");
+                return;
+            }
+        }
+
+        controller.storage.channels.save(channel_data);
+
+        bot.reply(message, "There are now " + channel_data.players.length + " players.");
+
+    });
+
+
+});
+
 
 controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, message) {
     controller.storage.channels.get(message.channel, function (err, channel_data) {
