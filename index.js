@@ -147,7 +147,8 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                                 name: userMeta.user.name,
                                 win: 0,
                                 loss: 0,
-                                dnf: 0
+                                dnf: 0,
+                                rank: 1500
                             };
                         }
                     };
@@ -155,7 +156,8 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                     ensureUserData(game.victimMeta);
 
 
-                    if (winner == null) {
+                    if (winner == null)
+                    {
                         channel_data.stats[game.challengerMeta.user.id]['dnf']++;
                         channel_data.stats[game.victimMeta.user.id]['dnf']++;
                         var biggestLoser =
@@ -163,13 +165,28 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                                 channel_data.stats[game.challengerMeta.user.id] :
                                 channel_data.stats[game.victimMeta.user.id];
                         bot.reply(message, ":thumbsup: oh well, @" + biggestLoser.name + " is biggest loser with " + biggestLoser.dnf + " dnf");
-                    } else {
-
+                    }
+                    else
+                    {
                         channel_data.stats[winner.user.id]['win']++;
                         channel_data.stats[loser.user.id]['loss']++;
 
-                        bot.reply(message, ":trophy: @" + winner.user.name + " increased w/l ratio to "
-                            + (channel_data.stats[winner.user.id]['win'] / channel_data.stats[winner.user.id]['loss']).toPrecision(3));
+                        var winnerRank = channel_data.stats[winner.user.id]['rank'];
+                        var loserRank = channel_data.stats[loser.user.id]['rank'];
+
+                        var modifierWinner = 1 / (1 + Math.pow(10, (loserRank - winnerRank) / 400));
+                        var modifierLoser = 1 / (1 + Math.pow(10, (winnerRank - loserRank) / 400));
+
+                        var winnerDelta = Math.round(32 * (1 - modifierWinner));
+                        channel_data.stats[winner.user.id]['rank'] = winnerRank + winnerDelta;
+                        var loserDelta = Math.round(32 * (0 - modifierLoser));
+                        channel_data.stats[loser.user.id]['rank'] = loserRank + loserDelta;
+
+                        bot.reply(
+                            message,
+                            ":trophy: @" + winner.user.name + " increased rank to " + channel_data.stats[winner.user.id]['rank'] +
+                            " (" + winnerDelta + "). @" + loser.user.name + " decreased rank to " +
+                            channel_data.stats[loser.user.id]['rank'] + " (" + loserDelta + ")");
                     }
                     controller.storage.channels.save(channel_data);
 
@@ -288,33 +305,24 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
             channel_data = {id: message.channel};
         }
 
-        if (!channel_data.hasOwnProperty('stats')) {
-            channel_data.stats = {};
-        }
-
-        var sorted = [];
+        var players = [];
         for (var key in channel_data.stats) {
-            if (channel_data.stats[key].win > 0 && channel_data.stats[key].loss > 0) {
-                sorted.push(channel_data.stats[key]);
-            }
+            players.push(channel_data.stats[key]);
         }
 
-        sorted.sort(function (b, a) {
-            var aRatio = a.win / a.loss;
-            var bRatio = b.win / b.loss;
-
-            if(!isFinite(aRatio-bRatio))
-                return !isFinite(aRatio) ? 1 : -1;
-            else
-                return aRatio-bRatio;
+        players.sort(function(player1, player2) {
+            return player1.rank > player2.rank ? -1 : 1;
         });
 
-        for (var i = 0; i < sorted.length; i++) {
-            bot.reply(message, "*" + (i + 1) + ".* " + sorted[i].name
-                + " with " + sorted[i].win + " wins"
-                + " and " + sorted[i].loss + " losses"
-                + " for a ratio of " + (sorted[i].win / sorted[i].loss).toPrecision(3));
-        }
+        // Display rankings
+        players.forEach(function (player, i) {
+            bot.reply(
+                message,
+                "*" + (i + 1) + ".* " + player.name
+                + " with a rank of " + player.rank
+                + ". Other stats: " + player.win + " wins, " + player.loss + " losses"
+            );
+        });
     });
 });
 
