@@ -30,6 +30,7 @@ controller.hears('help!', ['ambient'], function (bot, message) {
     var help = "You can...\n"
         + "_help!_ - see this help\n"
         + "_play!_ - opt in to get random matches\n"
+        + "_players!_ - get active player list\n"
         + "_spectate!_ - opt out of getting random matches\n"
         + "_random!_ - to challenge a random opponent\n"
         + "_matched!_ - to challenge an opponent close to your rank\n"
@@ -291,6 +292,30 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
     }
 });
 
+
+controller.hears(['players!'], ['ambient'], function (bot, message) {
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+        var players = [];
+        for (var i = 0; i < channel_data.players.length; i++) {
+            var playerId = channel_data.players[i];
+            bot.api.users.info({user: playerId}, function (err, playerMeta) {
+                players.push(playerMeta.user.name);
+            });
+        }
+
+        setTimeout(function() {
+            bot.reply(message, "Active Players: " + players.join(', '));
+        }, 1000);
+    });
+});
 
 controller.hears(['play!', 'spectate!'], ['ambient'], function (bot, message) {
     console.log(message);
