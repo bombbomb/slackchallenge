@@ -32,6 +32,7 @@ controller.hears('help!', ['ambient'], function (bot, message) {
         + "_play!_ - opt in to get random matches\n"
         + "_spectate!_ - opt out of getting random matches\n"
         + "_random!_ - to challenge a random opponent\n"
+        + "_matched!_ - to challenge an opponent close to your rank\n"
         + "_report! match name_ - to report a win or loss\n"
         + "_scores!_ - to see the leaderboard, sorted by W/L ratio\n"
         + "_trash!_ - talk some smack\n"
@@ -200,6 +201,41 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 
 controller.hears('random!', ['ambient'], function (bot, message) {
 
+    pickVictim(message, bot, function(eligibleMembers) {
+        return eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
+    });
+
+});
+
+controller.hears('matched!', ['ambient'], function (bot, message) {
+
+    pickVictim(message, bot, function(eligible_members, challengerId, channel_data) {
+        var challengerRank = channel_data.stats[challengerId].rank;
+
+        var closestId = eligible_members[0];
+        for (var i = 0; i < eligible_members.length; i++) {
+            var playerId = eligible_members[i];
+
+            if (channel_data.stats[playerId] == undefined) continue;
+
+            var playerRank = channel_data.stats[playerId].rank;
+            var closestRank = channel_data.stats[closestId].rank;
+
+            var playerDiff = Math.abs(challengerRank - playerRank);
+            var closestDiff = Math.abs(closestRank - playerRank);
+
+            if (playerDiff < closestDiff) {
+                closestId = playerId;
+            }
+        }
+
+        return closestId;
+    });
+
+});
+
+function pickVictim(message, bot, pickCallback)
+{
     var challenger = message.user;
 
     controller.storage.channels.get(message.channel, function (err, channel_data) {
@@ -232,7 +268,7 @@ controller.hears('random!', ['ambient'], function (bot, message) {
             bot.reply(message, 'THERE CAN BE ONLY *ONE*!');
         }
 
-        var victim = eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
+        var victim = pickCallback(eligibleMembers, challenger, channel_data);
 
         console.log('Victim: ' + victim);
 
@@ -242,7 +278,7 @@ controller.hears('random!', ['ambient'], function (bot, message) {
             });
         });
     });
-});
+}
 
 controller.hears('openmatches!', ['ambient'], function (bot, message) {
     if (openMatches.length == 0) {
