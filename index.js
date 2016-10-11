@@ -91,12 +91,7 @@ controller.hears('help!', ['ambient'], function (bot, message) {
 });
 
 
-<<<<<<< HEAD
-function holdMatch(bot, message, challengerMeta, victimMeta) {
-=======
-
 function holdMatch(bot, message, challengerMeta, victimMeta, channelId) {
->>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
 
     var matchName = Sentencer.make("{{ adjective }} {{ noun }}");
     bot.reply(message, "The match is @" + challengerMeta.user.name + " *VS* @" + victimMeta.user.name + "! When done, say *report! " + matchName + "*");
@@ -338,12 +333,6 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
         bot.reply(message, "You don't have any open matches at the moment...");
         return;
     }
-<<<<<<< HEAD
-    for (var i=0; i<openMatches.length; i++) {
-        var match = openMatches[i];
-        interactive.requestWinner(bot, message, match.challengerMeta.user.name, match.victimMeta.user.name, match.name);
-    }
-=======
 
     bot.api.users.info({user: message.user}, function (err, queryUser) {
         var filteredMatches = channelMatches.filter(function (match) {
@@ -352,10 +341,9 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
 
         for (var i = 0; i < filteredMatches.length; i++) {
             var match = filteredMatches[i];
-            bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
+            interactive.requestWinner(bot, message, match.challengerMeta.user.name, match.victimMeta.user.name, match.name);
         }
     });
->>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
 });
 
 
@@ -487,7 +475,6 @@ controller.hears(['trash!', hashTagTrashTalk],['direct_message','ambient'],funct
 
 });
 
-<<<<<<< HEAD
 interactive.on('report_winner', function(payload) {
     console.log(payload);
 });
@@ -527,6 +514,3 @@ controller.storage.teams.all(function(err,teams) {
 });
 
 console.log(Sentencer.make("slackchallenge is online and asks that you send prayers to her holiness {{ adjective }} {{ noun }}."));
-=======
-console.log(Sentencer.make("slackchallenge is online and asks that you send prayers to her holiness {{ adjective }} {{ noun }}."));
->>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
