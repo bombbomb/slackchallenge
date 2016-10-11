@@ -1,8 +1,3 @@
-if (!process.env.token) {
-    console.log('Error: Specify token in environment');
-    process.exit(1);
-}
-
 if (!process.env.redis_host) {
     console.log('Error: Specify redis_host in environment');
     process.exit(1);
@@ -10,20 +5,27 @@ if (!process.env.redis_host) {
 
 var Botkit = require('botkit'),
     redisStorage = require('botkit-storage-redis')({host: process.env.redis_host}),
-    controller = Botkit.slackbot({
-        debug: false,
-        storage: redisStorage
-    }),
     Sentencer = require('sentencer');
 
 
+
+var controller = Botkit.slackbot({
+    debug: false,
+    storage: redisStorage
+});
+
+const slackConfig = {
+    clientId: process.env.SLACK_ID,
+    clientSecret: process.env.SLACK_SECRET,
+    redirectUri: 'https://c4e0bd11.ngrok.io',
+    scopes: ['bot', 'command']
+};
+
+console.log('slack config', slackConfig);
+
+controller.configureSlackApp(slackConfig);
+
 var openMatches = [];
-
-
-controller.spawn({
-    token: process.env.token
-}).startRTM();
-
 
 
 controller.hears('help!', ['ambient'], function (bot, message) {
@@ -38,7 +40,6 @@ controller.hears('help!', ['ambient'], function (bot, message) {
         ;
     bot.reply(message, help);
 });
-
 
 
 function holdMatch(bot, message, challengerMeta, victimMeta) {
@@ -235,6 +236,10 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
     }
 });
 
+controller.hears('buttons!', ['ambient'], function (bot, message) {
+  require('./buttons-test.js')(bot, message);
+});
+
 controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, message) {
     controller.storage.channels.get(message.channel, function (err, channel_data) {
         if (channel_data == null) {
@@ -302,6 +307,41 @@ controller.hears(['trash!', hashTagTrashTalk],['direct_message','ambient'],funct
         }
 
     });
+
+});
+
+const interactive = require('./interactive.js')(controller);
+
+interactive.on('report_game', function(payload) {
+    console.log(payload);
+});
+
+
+
+controller.setupWebserver(8080, function(err) {
+
+    controller.createWebhookEndpoints(controller.webserver);
+
+    controller.createOauthEndpoints(controller.webserver,function(err,req,res) {
+        if (err) {
+            res.status(500).send('ERROR: ' + err);
+        } else {
+            res.send('Success!');
+        }
+    });
+});
+
+
+controller.on('slash_command',function(bot,message) {
+
+
+    console.log('dis message', message);
+
+    
+    //bot.replyPublicDelayed(message,'/h');
+    bot.replyPrivateDelayed(message,'*nudge nudge wink wink*');
+
+
 
 });
 
