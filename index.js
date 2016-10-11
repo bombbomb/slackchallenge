@@ -60,6 +60,10 @@ const interactive = require('./interactive.js')(controller);
 
 controller.setupWebserver(8080, function(err) {
 
+    controller.webserver.get('/', (req, res) => {
+       res.send('Ok')
+    });
+
     controller.createWebhookEndpoints(controller.webserver);
 
     controller.createOauthEndpoints(controller.webserver,function(err,req,res) {
