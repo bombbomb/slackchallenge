@@ -45,7 +45,7 @@ controller.hears('help!', ['ambient'], function (bot, message) {
 
 
 
-function holdMatch(bot, message, challengerMeta, victimMeta) {
+function holdMatch(bot, message, challengerMeta, victimMeta, channelId) {
 
     var matchName = Sentencer.make("{{ adjective }} {{ noun }}");
     bot.reply(message, "The match is @" + challengerMeta.user.name + " *VS* @" + victimMeta.user.name + "! When done, say *report! " + matchName + "*");
@@ -55,7 +55,8 @@ function holdMatch(bot, message, challengerMeta, victimMeta) {
         bot: bot,
         message: message,
         challengerMeta: challengerMeta,
-        victimMeta: victimMeta
+        victimMeta: victimMeta,
+        channelId: channelId
     };
 
     openMatches.push(match);
@@ -82,7 +83,7 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 
     var game = null;
     for (var i=0; i<openMatches.length; i++) {
-        if (openMatches[i].name == matchName) {
+        if (openMatches[i].name == matchName && openMatches[i].channelId == message.channel) {
             game = openMatches[i];
             break;
         }
@@ -201,7 +202,6 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 });
 
 controller.hears('random!', ['ambient'], function (bot, message) {
-
     pickVictim(message, bot, function(eligibleMembers) {
         return eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
     });
@@ -275,21 +275,29 @@ function pickVictim(message, bot, pickCallback)
 
         bot.api.users.info({user: challenger}, function (err, challengerMeta) {
             bot.api.users.info({user: victim}, function (err, victimMeta) {
-                holdMatch(bot, message, challengerMeta, victimMeta);
+                holdMatch(bot, message, challengerMeta, victimMeta, message.channel);
             });
         });
     });
 }
 
 controller.hears('openmatches!', ['ambient'], function (bot, message) {
-    if (openMatches.length == 0) {
+    var channelMatches = openMatches.filter(function(match) { return match.channelId == message.channel; });
+    if (channelMatches.length == 0) {
         bot.reply(message, "There are no open matches at the moment...");
         return;
     }
-    for (var i=0; i<openMatches.length; i++) {
-        var match = openMatches[i];
-        bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
-    }
+
+    bot.api.users.info({user: message.user}, function (err, queryUser) {
+        var filteredMatches = channelMatches.filter(function (match) {
+            return match.challengerMeta.user.name == queryUser.user.name || match.victimMeta.user.name == queryUser.user.name;
+        });
+
+        for (var i = 0; i < filteredMatches.length; i++) {
+            var match = filteredMatches[i];
+            bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
+        }
+    });
 });
 
 
