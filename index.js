@@ -35,10 +35,10 @@ controller.hears('help!', ['ambient'], function (bot, message) {
         + "_random!_ - to challenge a random opponent\n"
         + "_matched!_ - to challenge an opponent close to your rank\n"
         + "_report! match name_ - to report a win or loss\n"
-        + "_scores!_ - to see the leaderboard, sorted by W/L ratio\n"
+        + "_scores!_ - to see the leaderboard, sorted by rank\n"
         + "_trash!_ - talk some smack\n"
         + "_#trashtalk_ - teach the bot naughty language\n"
-        + "_openmatches!_ - to list open matches\n"
+        + "_openmatches!_ - to list your open matches\n"
         ;
     bot.reply(message, help);
 });
@@ -284,7 +284,7 @@ function pickVictim(message, bot, pickCallback)
 controller.hears('openmatches!', ['ambient'], function (bot, message) {
     var channelMatches = openMatches.filter(function(match) { return match.channelId == message.channel; });
     if (channelMatches.length == 0) {
-        bot.reply(message, "There are no open matches at the moment...");
+        bot.reply(message, "You don't have any open matches at the moment...");
         return;
     }
 
