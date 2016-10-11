@@ -76,18 +76,27 @@ var openMatches = [];
 controller.hears('help!', ['ambient'], function (bot, message) {
     var help = "You can...\n"
         + "_help!_ - see this help\n"
+        + "_play!_ - opt in to get random matches\n"
+        + "_players!_ - get active player list\n"
+        + "_spectate!_ - opt out of getting random matches\n"
         + "_random!_ - to challenge a random opponent\n"
+        + "_matched!_ - to challenge an opponent close to your rank\n"
         + "_report! match name_ - to report a win or loss\n"
-        + "_scores!_ - to see the leaderboard, sorted by W/L ratio\n"
+        + "_scores!_ - to see the leaderboard, sorted by rank\n"
         + "_trash!_ - talk some smack\n"
         + "_#trashtalk_ - teach the bot naughty language\n"
-        + "_openmatches!_ - to list open matches\n"
+        + "_openmatches!_ - to list your open matches\n"
         ;
     bot.reply(message, help);
 });
 
 
+<<<<<<< HEAD
 function holdMatch(bot, message, challengerMeta, victimMeta) {
+=======
+
+function holdMatch(bot, message, challengerMeta, victimMeta, channelId) {
+>>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
 
     var matchName = Sentencer.make("{{ adjective }} {{ noun }}");
     bot.reply(message, "The match is @" + challengerMeta.user.name + " *VS* @" + victimMeta.user.name + "! When done, say *report! " + matchName + "*");
@@ -97,7 +106,8 @@ function holdMatch(bot, message, challengerMeta, victimMeta) {
         bot: bot,
         message: message,
         challengerMeta: challengerMeta,
-        victimMeta: victimMeta
+        victimMeta: victimMeta,
+        channelId: channelId
     };
 
     openMatches.push(match);
@@ -124,7 +134,7 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 
     var game = null;
     for (var i=0; i<openMatches.length; i++) {
-        if (openMatches[i].name == matchName) {
+        if (openMatches[i].name == matchName && openMatches[i].channelId == message.channel) {
             game = openMatches[i];
             break;
         }
@@ -191,7 +201,8 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                                 name: userMeta.user.name,
                                 win: 0,
                                 loss: 0,
-                                dnf: 0
+                                dnf: 0,
+                                rank: 1500
                             };
                         }
                     };
@@ -199,7 +210,8 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                     ensureUserData(game.victimMeta);
 
 
-                    if (winner == null) {
+                    if (winner == null)
+                    {
                         channel_data.stats[game.challengerMeta.user.id]['dnf']++;
                         channel_data.stats[game.victimMeta.user.id]['dnf']++;
                         var biggestLoser =
@@ -207,13 +219,28 @@ controller.hears('report!', ['ambient'],function (bot, message) {
                                 channel_data.stats[game.challengerMeta.user.id] :
                                 channel_data.stats[game.victimMeta.user.id];
                         bot.reply(message, ":thumbsup: oh well, @" + biggestLoser.name + " is biggest loser with " + biggestLoser.dnf + " dnf");
-                    } else {
-
+                    }
+                    else
+                    {
                         channel_data.stats[winner.user.id]['win']++;
                         channel_data.stats[loser.user.id]['loss']++;
 
-                        bot.reply(message, ":trophy: @" + winner.user.name + " increased w/l ratio to "
-                            + (channel_data.stats[winner.user.id]['win'] / channel_data.stats[winner.user.id]['loss']).toPrecision(3));
+                        var winnerRank = channel_data.stats[winner.user.id]['rank'] || 1500;
+                        var loserRank = channel_data.stats[loser.user.id]['rank'] || 1500;
+
+                        var modifierWinner = 1 / (1 + Math.pow(10, (loserRank - winnerRank) / 400));
+                        var modifierLoser = 1 / (1 + Math.pow(10, (winnerRank - loserRank) / 400));
+
+                        var winnerDelta = Math.round(32 * (1 - modifierWinner));
+                        channel_data.stats[winner.user.id]['rank'] = winnerRank + winnerDelta;
+                        var loserDelta = Math.round(32 * (0 - modifierLoser));
+                        channel_data.stats[loser.user.id]['rank'] = loserRank + loserDelta;
+
+                        bot.reply(
+                            message,
+                            ":trophy: @" + winner.user.name + " increased rank to " + channel_data.stats[winner.user.id]['rank'] +
+                            " (" + winnerDelta + "). @" + loser.user.name + " decreased rank to " +
+                            channel_data.stats[loser.user.id]['rank'] + " (" + loserDelta + ")");
                     }
                     controller.storage.channels.save(channel_data);
 
@@ -226,22 +253,59 @@ controller.hears('report!', ['ambient'],function (bot, message) {
 });
 
 controller.hears('random!', ['ambient'], function (bot, message) {
+    pickVictim(message, bot, function(eligibleMembers) {
+        return eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
+    });
 
-    var challenger = message.user;
+});
 
-    bot.api.channels.info({channel: message.channel}, function (err, response) {
+controller.hears('matched!', ['ambient'], function (bot, message) {
 
-        var members = response.channel.members;
+    pickVictim(message, bot, function(eligible_members, challengerId, channel_data) {
+        var challengerRank = channel_data.stats[challengerId].rank;
 
-        if (members.length == 1) {
-            return;
+        var closestId = eligible_members[0];
+        for (var i = 0; i < eligible_members.length; i++) {
+            var playerId = eligible_members[i];
+
+            if (channel_data.stats[playerId] == undefined) continue;
+
+            var playerRank = channel_data.stats[playerId].rank;
+            var closestRank = channel_data.stats[closestId].rank;
+
+            var playerDiff = Math.abs(challengerRank - playerRank);
+            var closestDiff = Math.abs(closestRank - playerRank);
+
+            if (playerDiff < closestDiff) {
+                closestId = playerId;
+            }
         }
 
-        console.log(members);
+        return closestId;
+    });
+
+});
+
+function pickVictim(message, bot, pickCallback)
+{
+    var challenger = message.user;
+
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+
+        console.log(channel_data.players);
         var eligibleMembers = [];
-        for (var i = 0; i < members.length; i++) {
-            if ([bot.identity.id, challenger].indexOf(members[i]) === -1) {
-                eligibleMembers.push(members[i]);
+        for (var i = 0; i < channel_data.players.length; i++) {
+
+            if ([bot.identity.id, challenger].indexOf(channel_data.players[i]) === -1) {
+                eligibleMembers.push(channel_data.players[i]);
             }
         }
 
@@ -256,30 +320,111 @@ controller.hears('random!', ['ambient'], function (bot, message) {
             bot.reply(message, 'THERE CAN BE ONLY *ONE*!');
         }
 
-        var victim = eligibleMembers[Math.floor(Math.random() * eligibleMembers.length)];
-
-        //todo, if the user's not active, exclude them
+        var victim = pickCallback(eligibleMembers, challenger, channel_data);
 
         console.log('Victim: ' + victim);
 
         bot.api.users.info({user: challenger}, function (err, challengerMeta) {
             bot.api.users.info({user: victim}, function (err, victimMeta) {
-                holdMatch(bot, message, challengerMeta, victimMeta);
+                holdMatch(bot, message, challengerMeta, victimMeta, message.channel);
             });
         });
     });
-});
+}
 
 controller.hears('openmatches!', ['ambient'], function (bot, message) {
-    if (openMatches.length == 0) {
-        bot.reply(message, "There are no open matches at the moment...");
+    var channelMatches = openMatches.filter(function(match) { return match.channelId == message.channel; });
+    if (channelMatches.length == 0) {
+        bot.reply(message, "You don't have any open matches at the moment...");
         return;
     }
+<<<<<<< HEAD
     for (var i=0; i<openMatches.length; i++) {
         var match = openMatches[i];
         interactive.requestWinner(bot, message, match.challengerMeta.user.name, match.victimMeta.user.name, match.name);
     }
+=======
+
+    bot.api.users.info({user: message.user}, function (err, queryUser) {
+        var filteredMatches = channelMatches.filter(function (match) {
+            return match.challengerMeta.user.name == queryUser.user.name || match.victimMeta.user.name == queryUser.user.name;
+        });
+
+        for (var i = 0; i < filteredMatches.length; i++) {
+            var match = filteredMatches[i];
+            bot.reply(message, "*" + match.name + "* is " + match.challengerMeta.user.name + " *VS* " + match.victimMeta.user.name);
+        }
+    });
+>>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
 });
+
+
+controller.hears(['players!'], ['ambient'], function (bot, message) {
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+        var players = [];
+        for (var i = 0; i < channel_data.players.length; i++) {
+            var playerId = channel_data.players[i];
+            bot.api.users.info({user: playerId}, function (err, playerMeta) {
+                players.push(playerMeta.user.name);
+            });
+        }
+
+        setTimeout(function() {
+            bot.reply(message, "Active Players: " + players.join(', '));
+        }, 1000);
+    });
+});
+
+controller.hears(['play!', 'spectate!'], ['ambient'], function (bot, message) {
+    console.log(message);
+
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+        if (message.text.indexOf('play!') > -1) {
+
+            if (channel_data.players.indexOf(message.user) == -1) {
+                bot.reply(message, "Aight, you're in!...");
+                channel_data.players.push(message.user);
+            } else {
+                bot.reply(message, "You're already playing!");
+                return;
+            }
+        } else if (message.text.indexOf('spectate!') > -1) {
+
+            var indexOfPlayer = channel_data.players.indexOf(message.user);
+            if (indexOfPlayer != -1) {
+                bot.reply(message, "Peace out!");
+                channel_data.players.splice(indexOfPlayer, 1);
+            } else {
+                bot.reply(message, "You're already a spectator!");
+                return;
+            }
+        }
+
+        controller.storage.channels.save(channel_data);
+
+        bot.reply(message, "There are now " + channel_data.players.length + " players.");
+
+    });
+
+
+});
+
 
 controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, message) {
     controller.storage.channels.get(message.channel, function (err, channel_data) {
@@ -287,33 +432,24 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
             channel_data = {id: message.channel};
         }
 
-        if (!channel_data.hasOwnProperty('stats')) {
-            channel_data.stats = {};
-        }
-
-        var sorted = [];
+        var players = [];
         for (var key in channel_data.stats) {
-            if (channel_data.stats[key].win > 0 && channel_data.stats[key].loss > 0) {
-                sorted.push(channel_data.stats[key]);
-            }
+            players.push(channel_data.stats[key]);
         }
 
-        sorted.sort(function (b, a) {
-            var aRatio = a.win / a.loss;
-            var bRatio = b.win / b.loss;
-
-            if(!isFinite(aRatio-bRatio))
-                return !isFinite(aRatio) ? 1 : -1;
-            else
-                return aRatio-bRatio;
+        players.sort(function(player1, player2) {
+            return player1.rank > player2.rank ? -1 : 1;
         });
 
-        for (var i = 0; i < sorted.length; i++) {
-            bot.reply(message, "*" + (i + 1) + ".* " + sorted[i].name
-                + " with " + sorted[i].win + " wins"
-                + " and " + sorted[i].loss + " losses"
-                + " for a ratio of " + (sorted[i].win / sorted[i].loss).toPrecision(3));
-        }
+        // Display rankings
+        players.forEach(function (player, i) {
+            bot.reply(
+                message,
+                "*" + (i + 1) + ".* " + player.name
+                + " with a rank of " + player.rank
+                + ". Other stats: " + player.win + " wins, " + player.loss + " losses"
+            );
+        });
     });
 });
 
@@ -351,6 +487,7 @@ controller.hears(['trash!', hashTagTrashTalk],['direct_message','ambient'],funct
 
 });
 
+<<<<<<< HEAD
 interactive.on('report_winner', function(payload) {
     console.log(payload);
 });
@@ -390,3 +527,6 @@ controller.storage.teams.all(function(err,teams) {
 });
 
 console.log(Sentencer.make("slackchallenge is online and asks that you send prayers to her holiness {{ adjective }} {{ noun }}."));
+=======
+console.log(Sentencer.make("slackchallenge is online and asks that you send prayers to her holiness {{ adjective }} {{ noun }}."));
+>>>>>>> e02b4c3a888241d1104a31d4d72c95abf03e2767
