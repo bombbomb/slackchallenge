@@ -327,7 +327,13 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
 
         var players = [];
         for (var key in channel_data.stats) {
-            players.push(channel_data.stats[key]);
+            if (channel_data.stats[key].rank == undefined) {
+                channel_data.stats[key].rank = 1500;
+            }
+
+            if (channel_data.stats[key].win > 0 || channel_data.stats[key].loss > 0) {
+                players.push(channel_data.stats[key]);
+            }
         }
 
         players.sort(function(player1, player2) {
@@ -335,14 +341,17 @@ controller.hears(['scores!'], ['direct_message', 'ambient'], function (bot, mess
         });
 
         // Display rankings
+        var ranks = [];
         players.forEach(function (player, i) {
-            bot.reply(
-                message,
-                "*" + (i + 1) + ".* " + player.name
-                + " with a rank of " + player.rank
-                + ". Other stats: " + player.win + " wins, " + player.loss + " losses"
-            );
+            ranks.push("*" + (i + 1) + ".* " + player.name
+            + " " + player.rank + " rank, "
+            + player.win + " wins, " + player.loss + " losses");
         });
+
+        bot.reply(
+            message,
+            ranks.join("\n")
+        );
     });
 });
 
