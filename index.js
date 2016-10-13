@@ -174,7 +174,7 @@ controller.hears('matched!', ['ambient'], function (bot, message) {
             var closestRank = channel_data.stats[closestId].rank;
 
             var playerDiff = Math.abs(challengerRank - playerRank);
-            var closestDiff = Math.abs(closestRank - playerRank);
+            var closestDiff = Math.abs(closestRank - challengerRank);
 
             if (playerDiff < closestDiff) {
                 closestId = playerId;
