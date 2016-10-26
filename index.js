@@ -260,9 +260,6 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
     });
 });
 
-/* TODO
-  help
-*/
 controller.hears('odds!', ['ambient'], function(bot, message) {
     var channelMatches = openMatches.filter(function(match) {
         return match.channelId == message.channel;
