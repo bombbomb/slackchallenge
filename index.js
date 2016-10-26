@@ -90,6 +90,7 @@ controller.hears('help!', ['ambient'], function (bot, message) {
         + "_trash!_ - talk some smack\n"
         + "_#trashtalk_ - teach the bot naughty language\n"
         + "_openmatches!_ - to list your open matches\n"
+        + "_odds!_ - to see the odds for open matches\n"
         ;
     bot.reply(message, help);
 });
@@ -122,8 +123,60 @@ function closeMatch(matchName){
     }
 }
 
+function pickVictim(message, bot, pickCallback)
+{
+    var challenger = message.user;
+
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        if (channel_data == null) {
+            channel_data = {id: message.channel};
+        }
+
+        if (!channel_data.hasOwnProperty('players')) {
+            channel_data.players = [];
+        }
+
+
+        console.log(channel_data.players);
+        var eligibleMembers = [];
+        for (var i = 0; i < channel_data.players.length; i++) {
+
+            if ([bot.identity.id, challenger].indexOf(channel_data.players[i]) === -1) {
+                eligibleMembers.push(channel_data.players[i]);
+            }
+        }
+
+        console.log(eligibleMembers);
+
+        if (eligibleMembers.length == 0) {
+            bot.reply(message, 'Get friends.');
+            return;
+        }
+
+        if (eligibleMembers.length == 1) {
+            bot.reply(message, 'THERE CAN BE ONLY *ONE*!');
+        }
+
+        var victim = pickCallback(eligibleMembers, challenger, channel_data);
+
+        console.log('Victim: ' + victim);
+
+        bot.api.users.info({user: challenger}, function (err, challengerMeta) {
+            bot.api.users.info({user: victim}, function (err, victimMeta) {
+                holdMatch(bot, message, challengerMeta, victimMeta, message.channel);
+            });
+        });
+    });
+}
+
+function calcEloOdds(rank0, rank1) {
+    var odds0 = 1 / (1 + Math.pow(10, (rank1 - rank0) / 400));
+    var odds1 = 1 / (1 + Math.pow(10, (rank0 - rank1) / 400));
+    return [odds0, odds1];
+}
+
 controller.hears('report!', ['ambient'],function (bot, message) {
-    
+
     var matchName = message.text.replace('report!', '').trim();
 
     if ('' === matchName) {
@@ -186,51 +239,7 @@ controller.hears('matched!', ['ambient'], function (bot, message) {
 
 });
 
-function pickVictim(message, bot, pickCallback)
-{
-    var challenger = message.user;
 
-    controller.storage.channels.get(message.channel, function (err, channel_data) {
-        if (channel_data == null) {
-            channel_data = {id: message.channel};
-        }
-
-        if (!channel_data.hasOwnProperty('players')) {
-            channel_data.players = [];
-        }
-
-
-        console.log(channel_data.players);
-        var eligibleMembers = [];
-        for (var i = 0; i < channel_data.players.length; i++) {
-
-            if ([bot.identity.id, challenger].indexOf(channel_data.players[i]) === -1) {
-                eligibleMembers.push(channel_data.players[i]);
-            }
-        }
-
-        console.log(eligibleMembers);
-
-        if (eligibleMembers.length == 0) {
-            bot.reply(message, 'Get friends.');
-            return;
-        }
-
-        if (eligibleMembers.length == 1) {
-            bot.reply(message, 'THERE CAN BE ONLY *ONE*!');
-        }
-
-        var victim = pickCallback(eligibleMembers, challenger, channel_data);
-
-        console.log('Victim: ' + victim);
-
-        bot.api.users.info({user: challenger}, function (err, challengerMeta) {
-            bot.api.users.info({user: victim}, function (err, victimMeta) {
-                holdMatch(bot, message, challengerMeta, victimMeta, message.channel);
-            });
-        });
-    });
-}
 
 controller.hears('openmatches!', ['ambient'], function (bot, message) {
     var channelMatches = openMatches.filter(function(match) { return match.channelId == message.channel; });
@@ -249,6 +258,37 @@ controller.hears('openmatches!', ['ambient'], function (bot, message) {
             interactive.requestWinner(bot, message, match.challengerMeta, match.victimMeta, match.name);
         }
     });
+});
+
+controller.hears('odds!', ['ambient'], function(bot, message) {
+    var channelMatches = openMatches.filter(function(match) {
+        return match.channelId == message.channel;
+    });
+
+    if (channelMatches.length == 0) {
+      bot.reply(message, "There aren't any matches going on right now.");
+        return;
+    }
+
+    var matchesWithOdds = [];
+    for (var i = 0; i < channelMatches.length; i++) {
+
+        var match = channelMatches[i];
+        var challenger = match.challengerMeta.user;
+        var victim = match.victimMeta.user;
+
+        var challengerRank = channel_data.stats[challenger.id]['rank'] || 1500;
+        var victimRank = channel_data.stats[victim.id]['rank'] || 1500;
+
+        var odds = calcEloOdds(challengerRank, victimRank);
+
+        matchesWithOdds.push('*' + match.name + '*: '
+            + Math.round(odds[0] * 100) + '% ' + challenger.name + ' to '
+            + Math.round(odds[1] * 100) + '% ' + victim.name
+        );
+    }
+
+    bot.reply(message, matchesWithOdds.join("\n"));
 });
 
 
@@ -464,8 +504,9 @@ interactive.on('report_winner', function(payload, bot, message) {
             var winnerRank = channel_data.stats[winner.user.id]['rank'] || 1500;
             var loserRank = channel_data.stats[loser.user.id]['rank'] || 1500;
 
-            var modifierWinner = 1 / (1 + Math.pow(10, (loserRank - winnerRank) / 400));
-            var modifierLoser = 1 / (1 + Math.pow(10, (winnerRank - loserRank) / 400));
+            var odds = calcEloOdds(winnerRank, loserRank);
+            var modifierWinner = odds[0];
+            var modifierLoser = odds[1];
 
             var winnerDelta = Math.round(32 * (1 - modifierWinner));
             channel_data.stats[winner.user.id]['rank'] = winnerRank + winnerDelta;
