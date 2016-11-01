@@ -288,9 +288,8 @@ controller.hears('odds!', ['ambient'], function(bot, message) {
                 + Math.round(odds[1] * 100) + '% ' + victim.name
             );
         }
+        bot.reply(message, matchesWithOdds.join("\n"));
     });
-
-    bot.reply(message, matchesWithOdds.join("\n"));
 });
 
 
