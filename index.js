@@ -270,23 +270,25 @@ controller.hears('odds!', ['ambient'], function(bot, message) {
         return;
     }
 
-    var matchesWithOdds = [];
-    for (var i = 0; i < channelMatches.length; i++) {
+    controller.storage.channels.get(message.channel, function (err, channel_data) {
+        var matchesWithOdds = [];
+        for (var i = 0; i < channelMatches.length; i++) {
 
-        var match = channelMatches[i];
-        var challenger = match.challengerMeta.user;
-        var victim = match.victimMeta.user;
+            var match = channelMatches[i];
+            var challenger = match.challengerMeta.user;
+            var victim = match.victimMeta.user;
 
-        var challengerRank = channel_data.stats[challenger.id]['rank'] || 1500;
-        var victimRank = channel_data.stats[victim.id]['rank'] || 1500;
+            var challengerRank = channel_data.stats[challenger.id]['rank'] || 1500;
+            var victimRank = channel_data.stats[victim.id]['rank'] || 1500;
 
-        var odds = calcEloOdds(challengerRank, victimRank);
+            var odds = calcEloOdds(challengerRank, victimRank);
 
-        matchesWithOdds.push('*' + match.name + '*: '
-            + Math.round(odds[0] * 100) + '% ' + challenger.name + ' to '
-            + Math.round(odds[1] * 100) + '% ' + victim.name
-        );
-    }
+            matchesWithOdds.push('*' + match.name + '*: '
+                + Math.round(odds[0] * 100) + '% ' + challenger.name + ' to '
+                + Math.round(odds[1] * 100) + '% ' + victim.name
+            );
+        }
+    });
 
     bot.reply(message, matchesWithOdds.join("\n"));
 });
