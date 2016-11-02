@@ -175,6 +175,15 @@ function calcEloOdds(rank0, rank1) {
     return [odds0, odds1];
 }
 
+function getPlayerRank(player_id, channel_data) {
+    if (channel_data.stats[player_id] !== undefined
+        && channel_data.stats[player_id]['rank'] !== undefined) {
+        return channel_data.stats[player_id]['rank'];
+    } else {
+        return 1500;
+    }
+}
+
 controller.hears('report!', ['ambient'],function (bot, message) {
 
     var matchName = message.text.replace('report!', '').trim();
@@ -215,16 +224,18 @@ controller.hears('random!', ['ambient'], function (bot, message) {
 controller.hears('matched!', ['ambient'], function (bot, message) {
 
     pickVictim(message, bot, function(eligible_members, challengerId, channel_data) {
-        var challengerRank = channel_data.stats[challengerId].rank;
+
+        var challengerRank = getPlayerRank(challengerId, channel_data);
 
         var closestId = eligible_members[0];
         for (var i = 0; i < eligible_members.length; i++) {
             var playerId = eligible_members[i];
 
-            if (channel_data.stats[playerId] == undefined) continue;
+            if (channel_data.stats[playerId] == undefined 
+                || channel_data.stats[playerId].rank == undefined) continue;
 
-            var playerRank = channel_data.stats[playerId].rank;
-            var closestRank = channel_data.stats[closestId].rank;
+            var playerRank = getPlayerRank(playerId, channel_data);
+            var closestRank = getPlayerRank(closestId, channel_data);
 
             var playerDiff = Math.abs(challengerRank - playerRank);
             var closestDiff = Math.abs(closestRank - challengerRank);
@@ -278,19 +289,8 @@ controller.hears('odds!', ['ambient'], function(bot, message) {
             var challenger = match.challengerMeta.user;
             var victim = match.victimMeta.user;
 
-            if (channel_data.stats[challenger.id] !== undefined
-                && channel_data.stats[challenger.id]['rank'] !== undefined) {
-                var challengerRank = channel_data.stats[challenger.id]['rank'];
-            } else {
-                var challengerRank = 1500;
-            }
-
-            if (channel_data.stats[victim.id] !== undefined
-                && channel_data.stats[victim.id]['rank'] !== undefined) {
-                var victimRank = channel_data.stats[victim.id]['rank'];
-            } else {
-                var victimRank = 1500;
-            }
+            var challengerRank = getPlayerRank(challenger.id, channel_data);
+            var victimRank = getPlayerRank(victim.id, channel_data);
 
             var odds = calcEloOdds(challengerRank, victimRank);
 
@@ -513,8 +513,8 @@ interactive.on('report_winner', function(payload, bot, message) {
             channel_data.stats[winner.user.id]['win']++;
             channel_data.stats[loser.user.id]['loss']++;
 
-            var winnerRank = channel_data.stats[winner.user.id]['rank'] || 1500;
-            var loserRank = channel_data.stats[loser.user.id]['rank'] || 1500;
+            var winnerRank = getPlayerRank(winner.user.id, channel_data);
+            var loserRank = getPlayerRank(loser.user.id, channel_data);
 
             var odds = calcEloOdds(winnerRank, loserRank);
             var modifierWinner = odds[0];
