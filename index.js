@@ -278,8 +278,19 @@ controller.hears('odds!', ['ambient'], function(bot, message) {
             var challenger = match.challengerMeta.user;
             var victim = match.victimMeta.user;
 
-            var challengerRank = channel_data.stats[challenger.id]['rank'] || 1500;
-            var victimRank = channel_data.stats[victim.id]['rank'] || 1500;
+            if (channel_data.stats[challenger.id] !== undefined
+                && channel_data.stats[challenger.id]['rank'] !== undefined) {
+                var challengerRank = channel_data.stats[challenger.id]['rank'];
+            } else {
+                var challengerRank = 1500;
+            }
+
+            if (channel_data.stats[victim.id] !== undefined
+                && channel_data.stats[victim.id]['rank'] !== undefined) {
+                var victimRank = channel_data.stats[victim.id]['rank'];
+            } else {
+                var victimRank = 1500;
+            }
 
             var odds = calcEloOdds(challengerRank, victimRank);
 
