@@ -18,7 +18,7 @@ const slackConfig = {
     clientId: process.env.SLACK_ID,
     clientSecret: process.env.SLACK_SECRET,
     redirectUri: process.env.SLACK_REDIRECT,
-    scopes: ['bot', 'command']
+    scopes: ['bot', 'commands']
 };
 
 controller.configureSlackApp(slackConfig);
